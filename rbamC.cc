@@ -13,7 +13,9 @@
 #include <bamreader.hpp>
 
 using namespace std;
-using namespace Sequence;
+using Sequence::bamreader;
+using Sequence::bamrecord;
+using Sequence::samflag;
 
 int main( int argc, char ** argv )
 {
@@ -29,6 +31,10 @@ int main( int argc, char ** argv )
     {
       bamrecord b(reader.next_record());
       if(b.empty()) break;
+      if( b.refid() != -1 )
+	{
+	  cout << b.refid() << ' ' << (reader.ref_cbegin()+b.refid())->second << '\n';
+	}
       //cout << b.aux() << '\n';
       //auto s = b.seq(),c=b.cigar();//,q=b.qual();
       //cout << s << ' ' << c << '\n';
