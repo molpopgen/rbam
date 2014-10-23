@@ -28,7 +28,6 @@ namespace Sequence
     //destructor
     ~bamrecord();
 
-
     bamrecord & operator=(bamrecord&&);
     bamrecord & operator=(const bamrecord&);
 
