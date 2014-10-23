@@ -29,6 +29,7 @@ int main( int argc, char ** argv )
     {
       bamrecord b(reader.next_record());
       if(b.empty()) break;
+      //cout << b.aux() << '\n';
       //auto s = b.seq(),c=b.cigar();//,q=b.qual();
       //cout << s << ' ' << c << '\n';
 	  //cout << s << '\n';
@@ -39,7 +40,7 @@ int main( int argc, char ** argv )
 	  cout << '\n';
 	  */
       //cout << b.pos() << ' ' << b.next_pos() << ' ' << b.refid() << ' ' << b.next_refid() << ' ' << b.tlen() << '\n';
-	  ++nread;
+      ++nread;
 	  //if(vb.size()<50000000) vb.emplace_back(std::move(b)); //calls move constructor for bamrecord && (faster)
 	  //vb2.push_back( make_pair(b.read_name(),b) );
 	  /*

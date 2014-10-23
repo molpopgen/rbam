@@ -6,6 +6,7 @@ all: rbam.o test.o rbamC.o bamreader.o bamrecord.o uptr.o
 	$(CXX) $(CXXFLAGS) -o rbam rbam.o -lz
 	$(CXX) $(CXXFLAGS) -o rbamC rbamC.o bamreader.o bamrecord.o -lz -lsequence
 	$(CXX) $(CXXFLAGS) -o test test.o
+	$(CXX) $(CXXFLAGS) -o uptr uptr.o
 
 clean: 
 	rm -f *.o test rbam rbamC

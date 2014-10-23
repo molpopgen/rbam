@@ -1,22 +1,43 @@
 #include <bamrecord.hpp>
 #include <bamutil.hpp>
 #include <algorithm>
-
+#include <array>
+#include <cstring>
 using namespace std;
 using Sequence::samflag;
+
+namespace {
+  static const size_t lI32s = 6;
+  static const size_t lU32s = 7;
+  //! What stored in __rdata1 of a bamrecordImpl
+  enum class I32s : size_t {REFID,POS,L_SEQ,NEXT_REFID,NEXT_POS,TLEN};
+  //! What stored in __rdata2 of a bamrecordImpl
+  enum class U32s : size_t {BIN_MQ_NL,FLAG_NC,BIN,MAPQ,L_READ_NAME,FLAG,NC};
+  //14An integer may be stored as one of ‘cCsSiI’ in BAM, representing int8 t, uint8 t, int16 t, uint16 t, int32 t and
+  //uint32 t, respectively. In SAM, all single integer types are mapped to int32 t
+  static size_t sc = sizeof(int8_t),
+    sC = sizeof(uint8_t),
+    ss = sizeof(int16_t),
+    sS = sizeof(uint16_t),
+    si = sizeof(int32_t),
+    sI = sizeof(uint32_t);
+}
+
+using U32 = std::uint32_t;
+using I32 = std::int32_t;
+using U16 = std::uint16_t;
+using I16 = std::int16_t;
+using U8 = std::uint8_t;
+using I8 = std::int8_t;
 
 //Implementation class details
 class bamrecordImpl
 {
 public:
-  using U32 = std::uint32_t;
-  using I32 = std::int32_t;
-  using U8 = std::uint8_t;
-
   bool __empty;
   I32 __read,__block_size,__rdata1[6];
   U32 __rdata2[7];
-  std::unique_ptr<char[]> __read_name,__qual,__rest;
+  std::unique_ptr<char[]> __read_name,__qual,__aux;
   std::unique_ptr<U32[]> __ncigop;
   std::unique_ptr<U8[]> __seq;
 
@@ -31,30 +52,28 @@ bamrecordImpl::bamrecordImpl( const bamrecordImpl & bI) {
 
 bamrecordImpl& bamrecordImpl::operator=( const bamrecordImpl & bI)  
 {
-  using bamutil::U32s;
-  using bamutil::I32s;
   __empty=bI.__empty;
   __read=bI.__read;
   __block_size=bI.__block_size;
   __qual=nullptr;
-  __rest=nullptr;
+  __aux=nullptr;
   __ncigop=nullptr;
   __seq=nullptr;
   if (! __empty )
     {
       //Copy data into current object
       std::copy( &bI.__rdata1[0],
-		 &bI.__rdata1[bamutil::lI32s],
+		 &bI.__rdata1[lI32s],
 		 &__rdata1[0] );
       std::copy( &bI.__rdata2[0],
-		 &bI.__rdata2[bamutil::lU32s],
+		 &bI.__rdata2[lU32s],
 		 &__rdata2[0] );
       //Allocate our local pointers
       __read_name = std::unique_ptr<char[]>(new char[__rdata2[static_cast<size_t>(U32s::L_READ_NAME)]]);
       __ncigop = std::unique_ptr<U32[]>( new U32[__rdata2[static_cast<size_t>(U32s::NC)]] );
       __seq = std::unique_ptr<U8[]>(new U8[(__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1)/2]);
       __qual = std::unique_ptr<char[]>(new char[__rdata1[static_cast<size_t>(I32s::L_SEQ)]]);
-      __rest = std::unique_ptr<char[]>(new char[__block_size-__read]);
+      __aux = std::unique_ptr<char[]>(new char[strlen(bI.__aux.get())]);
 
       //And copy
       std::copy( &bI.__read_name[0],
@@ -69,9 +88,9 @@ bamrecordImpl& bamrecordImpl::operator=( const bamrecordImpl & bI)
       std::copy( &bI.__qual[0],
 		 &bI.__qual[__rdata1[static_cast<size_t>(I32s::L_SEQ)]],
 		 &__qual[0] );
-      std::copy( &bI.__rest[0],
-		 &bI.__rest[__block_size-__read],
-		 &__rest[0] );
+      std::copy( &bI.__aux[0],
+		 &bI.__aux[strlen(bI.__aux.get())],
+		 &__aux[0] );
     }
   return *this;
 }
@@ -80,12 +99,10 @@ bamrecordImpl::bamrecordImpl( gzFile in ) : __empty(false),
 				    __read(0),
 				    __read_name(nullptr),
 				    __qual(nullptr),
-				    __rest(nullptr),
+				    __aux(nullptr),
 				    __ncigop(nullptr),
 				    __seq(nullptr)
 {
-  using bamutil::I32s;
-  using bamutil::U32s;
   int test = gzread(in,&__block_size,sizeof(I32));
   if(!test || test == -1) { 
     __empty = true;
@@ -112,10 +129,76 @@ bamrecordImpl::bamrecordImpl( gzFile in ) : __empty(false),
 
   __qual = std::unique_ptr<char[]>(new char[__rdata1[static_cast<size_t>(I32s::L_SEQ)]]);
   __read += gzread( in, __qual.get(),__rdata1[static_cast<size_t>(I32s::L_SEQ)]*sizeof(char) );
+  __aux = std::unique_ptr<char[]>(new char[__block_size-__read]);
+  __read += gzread( in,__aux.get(), __block_size - __read );
 
-  //HACK
-  __rest = std::unique_ptr<char[]>(new char[__block_size-__read]);
-  __read += gzread( in,__rest.get(), __block_size - __read );
+  /*
+  while( __start < __aux_len )
+    {
+      std::array<char,3> tag{__aux[__start++],__aux[__start++],'\0'};
+      char val_type = __aux[__start++];
+      if ( val_type == 'A' )
+	{
+	  char ch = __aux[__start++];
+	}
+      else if ( val_type == 'c' )
+	{
+	  int8_t v = 0;
+	  for( size_t i = 0 ; i < sizeof(int8_t) ; ++i )
+	    {
+	      v |= __aux[__start++];
+	    }
+	}
+      else if (val_type == 'C')
+	{
+	  unsigned v = 0;
+	  for( size_t i = 0 ; i < sizeof(uint8_t) ; ++i )
+	    {
+	      v |= __aux[__start++];
+	    }
+	}
+      else if (val_type == 's')
+	{
+	  int16_t v = 0;
+	  for( size_t i = 0 ; i < sizeof(int16_t) ; ++i )
+	    {
+	      v |= __aux[__start++];
+	    }
+	}
+      else if (val_type == 'S')
+	{
+	  uint16_t v = 0;
+	  for( size_t i = 0 ; i < sizeof(uint16_t) ; ++i )
+	    {
+	      v |= __aux[__start++];
+	    }
+	}
+      else if (val_type == 'i')
+	{
+	  int32_t v = 0;
+	  for( size_t i = 0 ; i < sizeof(int32_t) ; ++i )
+	    {
+	      v |= __aux[__start++];
+	    }
+	}
+      else if (val_type == 'I')
+	{
+	  uint32_t v = 0;
+	  for( size_t i = 0 ; i < sizeof(uint32_t) ; ++i )
+	    {
+	      v |= __aux[__start++];
+	    }
+	}
+      else if (val_type == 'B')//not impl
+	{
+	}
+      else if (val_type == 'Z')
+	{
+	  char * __x = std::find(&__aux[__start],&__aux[__aux_len],'\0');
+	  __start += (__x - &__aux[__start])+1;
+	}
+    }
+  */
 }
 
 bamrecord::bamrecord( gzFile in ) : __impl( std::unique_ptr<bamrecordImpl>(new bamrecordImpl(in)) ) {}
@@ -136,14 +219,7 @@ bamrecord & bamrecord::operator=(bamrecord&&rhs)
 {
   bamrecordImpl  * t = this->__impl.release();
   delete t;
-  //this->__impl = nullptr;
   std::swap(this->__impl,rhs.__impl);
-  //rhs.__impl.release();
-  /*
-  this->__impl.release();
-  this->__impl = std::move(rhs.__impl);
-  rhs.__impl = nullptr;
-  */
   return *this;
 }
 
@@ -166,7 +242,6 @@ std::string bamrecord::read_name() const
 
 std::string bamrecord::seq() const 
 {
-  using bamutil::I32s;
   std::unique_ptr<char[]> rv(new char[__impl->__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1]);
   size_t __pos = 0;
   std::for_each(this->seq_cbeg(),
@@ -186,13 +261,11 @@ const std::uint8_t * bamrecord::seq_cbeg() const
 
 const std::uint8_t * bamrecord::seq_cend() const
 {
-  using bamutil::I32s;
   return &__impl->__seq[0] + (__impl->__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1)/2;
 }
 
 std::string bamrecord::cigar() const 
 {
-  using bamutil::U32s;
   std::string rv;
   std::for_each( &__impl->__ncigop[0],
 		 &__impl->__ncigop[0]+ __impl->__rdata2[static_cast<size_t>(U32s::NC)],
@@ -217,43 +290,132 @@ const char * bamrecord::qual_cbeg() const
 
 const char * bamrecord::qual_cend() const 
 {
-  using bamutil::I32s;
   return &__impl->__qual[0]+__impl->__rdata1[static_cast<size_t>(I32s::L_SEQ)];
 }
 
 samflag bamrecord::flag() const
 {
-  using bamutil::U32s;
   return samflag( __impl->__rdata2[static_cast<size_t>(U32s::FLAG)]);
 }
  
 std::uint32_t bamrecord::mapq() const
 {
-  using bamutil::U32s;
   return __impl->__rdata2[static_cast<size_t>(U32s::MAPQ)];
 }
 
 std::int32_t bamrecord::pos() const {
-  using bamutil::I32s;
   return __impl->__rdata1[static_cast<size_t>(I32s::POS)];
 }
 
 std::int32_t bamrecord::next_pos() const {
-  using bamutil::I32s;
   return __impl->__rdata1[static_cast<size_t>(I32s::NEXT_POS)];
 }
 
 std::int32_t bamrecord::refid() const {
-  using bamutil::I32s;
   return __impl->__rdata1[static_cast<size_t>(I32s::REFID)];
 }
 
 std::int32_t bamrecord::next_refid() const {
-  using bamutil::I32s;
   return __impl->__rdata1[static_cast<size_t>(I32s::NEXT_REFID)];
 }
 
 std::int32_t bamrecord::tlen() const {
-  using bamutil::I32s;
   return __impl->__rdata1[static_cast<size_t>(I32s::TLEN)];
+}
+
+std::int32_t bamrecord::l_seq() const {
+  return __impl->__rdata1[static_cast<size_t>(I32s::L_SEQ)];
+}
+
+const char * bamrecord::hasTag(const char * tag) {
+  if(tag==NULL||tag==nullptr) return nullptr;
+  const char * rv = strstr(__impl->__aux.get(),tag);
+  return(rv==NULL) ? nullptr : rv;
+}
+
+const char * bamrecord::hasTag(const char * start, const char * tag) {
+  if(start == NULL || start == nullptr || tag == NULL || tag == nullptr) return nullptr;
+  const char * rv = strstr(start,tag);
+  return(rv==NULL) ? nullptr : rv;
+}
+
+std::string bamrecord::aux() const
+{
+  string rv;
+  size_t start = 0,end=strlen(__impl->__aux.get());
+  while( start < end )
+    {
+      std::array<char,3> tag{__impl->__aux[start++],__impl->__aux[start++],'\0'};
+      char val_type = __impl->__aux[start++];
+      rv += string(tag.data()) + ":" + val_type + ":";
+      if ( val_type == 'A' )
+	{
+	  rv += __impl->__aux[start++];
+	}
+      else if ( val_type == 'c' )
+	{
+	  I32 v = 0;
+	  for( size_t i = 0 ; i < sizeof(int8_t) ; ++i )
+	    {
+	      v |= __impl->__aux[start++];
+	    }
+	  rv += to_string(v);
+	}
+      else if (val_type == 'C')
+	{
+	  I32 v = 0;
+	  for( size_t i = 0 ; i < sizeof(uint8_t) ; ++i )
+	    {
+	      v |= __impl->__aux[start++];
+	    }
+	  rv += to_string(v);
+	}
+      else if (val_type == 's')
+	{
+	  I32 v = 0;
+	  for( size_t i = 0 ; i < sizeof(int16_t) ; ++i )
+	    {
+	      v |= __impl->__aux[start++];
+	    }
+	  rv += to_string(v);
+	}
+      else if (val_type == 'S')
+	{
+	  I32 v = 0;
+	  for( size_t i = 0 ; i < sizeof(uint16_t) ; ++i )
+	    {
+	      v |= __impl->__aux[start++];
+	    }
+	  rv += to_string(v);
+	}
+      else if (val_type == 'i')
+	{
+	  I32 v = 0;
+	  for( size_t i = 0 ; i < sizeof(int32_t) ; ++i )
+	    {
+	      v |= __impl->__aux[start++];
+	    }
+	  rv += to_string(v);
+	}
+      else if (val_type == 'I')
+	{
+	  I32 v = 0;
+	  for( size_t i = 0 ; i < sizeof(uint32_t) ; ++i )
+	    {
+	      v |= __impl->__aux[start++];
+	    }
+	  rv += to_string(v);
+	}
+      else if (val_type == 'B')//not impl
+	{
+	}
+      else if (val_type == 'Z')
+	{
+	  char * __x = std::find(&__impl->__aux[start],&__impl->__aux[end],'\0');
+	  rv += string( &__impl->__aux[start],__x );
+	  start += (__x - &__impl->__aux[start])+1;
+	}
+      rv += '\t';
+    }
+  return rv;
 }

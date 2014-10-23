@@ -3,7 +3,7 @@
 
 using std::string;
 
-//Impl class
+//!Impl class for bamreader
 class bamreaderImpl
 {
 public:
