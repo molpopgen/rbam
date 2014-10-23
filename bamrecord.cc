@@ -1,8 +1,8 @@
 #include <bamrecord.hpp>
 #include <bamutil.hpp>
 #include <algorithm>
-#include <array>
 #include <cstring>
+
 using namespace std;
 using Sequence::samflag;
 
@@ -277,11 +277,14 @@ namespace Sequence
   {
     string rv;
     size_t start = 0,end=strlen(__impl->__aux.get());
+    char tag[3];
+    tag[2]='\0';
     while( start < end )
       {
-	std::array<char,3> tag{__impl->__aux[start++],__impl->__aux[start++],'\0'};
+	tag[0]=__impl->__aux[start++];
+	tag[1]=__impl->__aux[start++];
 	char val_type = __impl->__aux[start++];
-	rv += string(tag.data()) + ":" + val_type + ":";
+	rv += string(tag) + ":" + val_type + ":";
 	if ( val_type == 'A' )
 	  {
 	    rv += __impl->__aux[start++];
