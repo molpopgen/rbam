@@ -1,0 +1,1 @@
+Experimental test code for native BAM reader.  When ready-ish, will be moved to libsequence

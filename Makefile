@@ -1,0 +1,15 @@
+CXX=c++
+CXXFLAGS=-std=c++11 -Wall -W -O3 -I.
+#CXXFLAGS=-std=c++11 -Wall -W -O0 -g -I.
+
+all: rbam.o test.o rbamC.o bamreader.o bamrecord.o uptr.o 
+	$(CXX) $(CXXFLAGS) -o rbam rbam.o -lz
+	$(CXX) $(CXXFLAGS) -o rbamC rbamC.o bamreader.o bamrecord.o -lz -lsequence
+	$(CXX) $(CXXFLAGS) -o test test.o
+
+clean: 
+	rm -f *.o test rbam rbamC
+
+bamreader.o: bamreader.hpp bamrecord.hpp
+bamrecord.o: bamrecord.hpp bamutil.hpp
+rbamC.o: bamreader.hpp bamrecord.hpp bamutil.hpp
