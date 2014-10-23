@@ -2,9 +2,9 @@ CXX=c++
 CXXFLAGS=-std=c++11 -Wall -W -O3 -I.
 #CXXFLAGS=-std=c++11 -Wall -W -O0 -g -I.
 
-all: rbam.o test.o rbamC.o bamreader.o bamrecord.o uptr.o 
+all: rbam.o test.o rbamC.o bamreader.o bamrecord.o  uptr.o 
 	$(CXX) $(CXXFLAGS) -o rbam rbam.o -lz
-	$(CXX) $(CXXFLAGS) -o rbamC rbamC.o bamreader.o bamrecord.o -lz -lsequence
+	$(CXX) $(CXXFLAGS) -o rbamC rbamC.o  bamreader.o bamrecord.o  -lz -lsequence
 	$(CXX) $(CXXFLAGS) -o test test.o
 	$(CXX) $(CXXFLAGS) -o uptr uptr.o
 

@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <sstream>
 #include <memory>
+#include <cassert>
 #include <algorithm>
 
 #include <bamreader.hpp>
@@ -24,68 +25,56 @@ int main( int argc, char ** argv )
   
   bamreader reader( argv[1] );
   unsigned nread=0;
-  std::vector<bamrecord> vb;
-  vector< pair<string,bamrecord > > vb2;
-  vb.reserve(50000000);
+  std::vector<bamrecord> PAR,UL;
+  //vector< pair<string,bamrecord > > vb2;
+  PAR.reserve(50000000);
+  UL.reserve(50000000);
   while(! reader.eof() && !reader.error() )
     {
       bamrecord b(reader.next_record());
       if(b.empty()) break;
-      if( b.refid() != -1 )
-	{
-	  cout << b.refid() << ' ' << (reader.ref_cbegin()+b.refid())->second << '\n';
-	}
-      //cout << b.aux() << '\n';
-      //auto s = b.seq(),c=b.cigar();//,q=b.qual();
-      //cout << s << ' ' << c << '\n';
-	  //cout << s << '\n';
-	  /*
-	  auto s = b.seq(),q=b.qual();
-	  cout << s << ' ';
-	  for( auto __q : q ) cout << char(__q+32);
-	  cout << '\n';
-	  */
-      //cout << b.pos() << ' ' << b.next_pos() << ' ' << b.refid() << ' ' << b.next_refid() << ' ' << b.tlen() << '\n';
-      ++nread;
-	  //if(vb.size()<50000000) vb.emplace_back(std::move(b)); //calls move constructor for bamrecord && (faster)
-	  //vb2.push_back( make_pair(b.read_name(),b) );
-	  /*
-	  for(unsigned i=0;i<vb2.size();++i)
-	    {
-	      bamrecord b2 = vb2[i].second;
-	      cout << b2.seq() << '\n';
-	      //cout << vb2[i].first << ' ' << vb2[i].second.seq() << '\n';
-	    }
-	  */
-	  //if(vb.size()<50000000) vb.push_back(b); //calls copy constructor for const bamrecord &
-	  //else
-	  //exit(1);
 
-	  // for( auto rec:vb )
-	  //   {
-	  //     auto s = rec.seq(),
-	  // 	c=rec.cigar(),
-	  // 	q=rec.qual();
-	  //     cout << s << ' ' << c << ' ' << q << '\n';
-	  //     exit(1);
-	  //   }
-	  //if(nread<10000000) vb.emplace_back(std::move(b));
-	  /*
+      if( b.refid() != -1 && b.next_refid() != -1 ) //if both reads mapped
+	{
+	  if( b.refid() != b.next_refid() ) //both map to different scaffolds
+	    {
+	      UL.emplace_back(std::move(b));
+	    }
 	  else
 	    {
-	      for_each(vb.begin(),vb.end(),
-		       [](const bamrecord & rec)
-		       {
-			 auto s = rec.seq(),
-			   c=rec.cigar(),
-			   q=rec.qual();
-			 cout << s << ' ' << c << ' ' << q << '\n';
-		       }
-		       );
-	      exit(1);
+	      samflag sf = b.flag();
+	      assert(sf.is_paired);
+	      if( sf.qstrand == sf.mstrand && b.pos() != b.next_pos())
+		{
+		  if( b.read_name() == "1:1:234846:0" ||
+		      b.read_name() == "1:1:234846:1" )
+		    {
+		      cout << b.mapq() << ' ' << b.seq() << ' '
+			   << b.aux() << '\n';
+		    }
+		  if( b.refid() ==  b.next_refid() ) {
+		    PAR.emplace_back(std::move(b));
+		  }
+		}
 	    }
-	  */
+	}
+      ++nread;
     }
+
+  //Sort the alignments by read name
+  std::sort( PAR.begin(), PAR.end(),
+	     [](const bamrecord & lhs, const bamrecord & rhs) {
+	       return lhs.read_name() < rhs.read_name();
+	     } );
+
+  std::sort( UL.begin(), UL.end(),
+	     [](const bamrecord & lhs, const bamrecord & rhs) {
+	       return lhs.read_name() < rhs.read_name();
+	     } );
+  std::for_each(PAR.begin(),PAR.end(),
+		[](const bamrecord & b) {
+		  cout << b.read_name() << '\n';
+		});
   cout << nread << " alignments processed\n";
 }
 

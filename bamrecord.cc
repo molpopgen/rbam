@@ -1,5 +1,5 @@
-#include <bamrecord.hpp>
 #include <bamutil.hpp>
+#include <bamrecord.hpp>
 #include <algorithm>
 #include <cstring>
 
@@ -32,6 +32,9 @@ using I8 = std::int8_t;
 
 namespace Sequence 
 {
+  using bamutil::int2seq;
+  using bamutil::bamCig;
+
   //Implementation class details
   class bamrecordImpl
   {
@@ -181,8 +184,8 @@ namespace Sequence
     std::for_each(this->seq_cbeg(),
 		  this->seq_cend(),
 		  [&](const U8 & i) {
-		    rv[__pos++]= bamutil::int2seq[ (((i) >> 4) & 0x0F) ];
-		    rv[__pos++]= bamutil::int2seq[ (((i)) & 0x0F) ];
+		    rv[__pos++]= int2seq[ (((i) >> 4) & 0x0F) ];
+		    rv[__pos++]= int2seq[ (((i)) & 0x0F) ];
 		  });
     rv[__pos]='\0';
     return(string(rv.get()));
@@ -206,7 +209,7 @@ namespace Sequence
 		   [&](const U32 & i )
 		   {
 		     U32 __op = (i>>4);
-		     rv += to_string(__op) + bamutil::bamCig[i^(__op<<4)];
+		     rv += to_string(__op) + bamCig[i^(__op<<4)];
 		   } );
     return rv;
   }
