@@ -2,6 +2,7 @@
 #include <bamrecord.hpp>
 #include <algorithm>
 #include <cstring>
+#include <cassert>
 
 using namespace std;
 using Sequence::samflag;
@@ -15,12 +16,43 @@ namespace {
   enum class U32s : size_t {BIN_MQ_NL,FLAG_NC,BIN,MAPQ,L_READ_NAME,FLAG,NC};
   //14An integer may be stored as one of ‘cCsSiI’ in BAM, representing int8 t, uint8 t, int16 t, uint16 t, int32 t and
   //uint32 t, respectively. In SAM, all single integer types are mapped to int32 t
+
+  size_t auxTagSize(const char & c)
+  {
+    switch(c)
+      {
+      case 'c':
+	return sizeof(int8_t);
+	break;
+      case 'C':
+	return sizeof(uint8_t);
+	break;
+      case 's':
+	return sizeof(int16_t);
+	break;
+      case 'S':
+	return sizeof(uint16_t);
+	break;
+      case 'i':
+	return sizeof(int32_t);
+	break;
+      case 'I':
+	return sizeof(uint32_t);
+	break;
+      default:
+	return 0;
+	break;
+      }
+    return 0;
+  }
+  /*
   static size_t sc = sizeof(int8_t),
     sC = sizeof(uint8_t),
     ss = sizeof(int16_t),
     sS = sizeof(uint16_t),
     si = sizeof(int32_t),
     sI = sizeof(uint32_t);
+  */
 }
 
 using U32 = std::uint32_t;
@@ -35,6 +67,31 @@ namespace Sequence
   using bamutil::int2seq;
   using bamutil::bamCig;
 
+  bamaux::bamaux( ) : size(0),
+		      value_type(char()),
+		      tag(nullptr),
+		      value(nullptr)
+  {
+  }
+
+  bamaux::bamaux( size_t __size,
+		  std::unique_ptr<char[]> & __tag,
+		  char __value_type,
+		  std::unique_ptr<unsigned char[]> & __value) : size(std::move(__size)),
+							 value_type(std::move(__value_type)),
+							 tag(std::move(__tag)),
+								value(std::move(__value))
+  {
+  }
+
+  bamaux::bamaux( bamaux && ba ) : size(std::move(ba.size)),
+				   value_type(std::move(ba.value_type)),
+				   tag(std::move(ba.tag)),
+				   value(std::move(ba.value))
+  {
+    //value = 
+  }
+
   //Implementation class details
   class bamrecordImpl
   {
@@ -42,15 +99,27 @@ namespace Sequence
     bool __empty;
     I32 __read,__block_size,__rdata1[6];
     U32 __rdata2[7];
+    size_t __aux_size;
     std::unique_ptr<char[]> __read_name,__qual,__aux;
     std::unique_ptr<U32[]> __ncigop;
     std::unique_ptr<U8[]> __seq;
 
+    bamrecordImpl(  );
     bamrecordImpl( gzFile in );
     bamrecordImpl( const bamrecordImpl & );
     bamrecordImpl& operator=( const bamrecordImpl &);
   };
 
+  bamrecordImpl::bamrecordImpl() : __empty(true),
+				   __aux_size(0),
+				   __read_name(nullptr),
+				   __qual(nullptr),
+				   __aux(nullptr),
+				   __ncigop(nullptr),
+				   __seq(nullptr)
+  {
+  }
+  
   bamrecordImpl::bamrecordImpl( const bamrecordImpl & bI) {
     *this = bI;
   }
@@ -60,6 +129,8 @@ namespace Sequence
     __empty=bI.__empty;
     __read=bI.__read;
     __block_size=bI.__block_size;
+    __aux_size = bI.__aux_size;
+    __read_name=nullptr;
     __qual=nullptr;
     __aux=nullptr;
     __ncigop=nullptr;
@@ -78,7 +149,8 @@ namespace Sequence
 	__ncigop = std::unique_ptr<U32[]>( new U32[__rdata2[static_cast<size_t>(U32s::NC)]] );
 	__seq = std::unique_ptr<U8[]>(new U8[(__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1)/2]);
 	__qual = std::unique_ptr<char[]>(new char[__rdata1[static_cast<size_t>(I32s::L_SEQ)]]);
-	__aux = std::unique_ptr<char[]>(new char[strlen(bI.__aux.get())]);
+	if(bI.__aux_size)
+	  __aux = std::unique_ptr<char[]>(new char[bI.__aux_size]);
 
 	//And copy
 	std::copy( &bI.__read_name[0],
@@ -93,15 +165,18 @@ namespace Sequence
 	std::copy( &bI.__qual[0],
 		   &bI.__qual[__rdata1[static_cast<size_t>(I32s::L_SEQ)]],
 		   &__qual[0] );
-	std::copy( &bI.__aux[0],
-		   &bI.__aux[strlen(bI.__aux.get())],
-		   &__aux[0] );
+	if(bI.__aux_size) {
+	  std::copy( &bI.__aux[0],
+		     &bI.__aux[0]+bI.__aux_size,
+		     &__aux[0] );
+	}
       }
     return *this;
   }
 
   bamrecordImpl::bamrecordImpl( gzFile in ) : __empty(false),
 					      __read(0),
+					      __aux_size(0),
 					      __read_name(nullptr),
 					      __qual(nullptr),
 					      __aux(nullptr),
@@ -134,9 +209,16 @@ namespace Sequence
 
     __qual = std::unique_ptr<char[]>(new char[__rdata1[static_cast<size_t>(I32s::L_SEQ)]]);
     __read += gzread( in, __qual.get(),__rdata1[static_cast<size_t>(I32s::L_SEQ)]*sizeof(char) );
-    __aux = std::unique_ptr<char[]>(new char[__block_size-__read]);
-    __read += gzread( in,__aux.get(), __block_size - __read );
+    if( __read < __block_size )
+      {
+	__aux_size = __block_size-__read;
+	__aux = std::unique_ptr<char[]>(new char[__aux_size]);
+	__read += gzread( in,__aux.get(), __aux_size );
+      }
+    assert(__read == __block_size);
   }
+
+  bamrecord::bamrecord(  ) : __impl( std::unique_ptr<bamrecordImpl>(new bamrecordImpl()) ) {}
 
   bamrecord::bamrecord( gzFile in ) : __impl( std::unique_ptr<bamrecordImpl>(new bamrecordImpl(in)) ) {}
 
@@ -264,22 +346,67 @@ namespace Sequence
     return __impl->__rdata1[static_cast<size_t>(I32s::L_SEQ)];
   }
 
-  const char * bamrecord::hasTag(const char * tag) {
-    if(tag==NULL||tag==nullptr) return nullptr;
-    const char * rv = strstr(__impl->__aux.get(),tag);
-    return(rv==NULL) ? nullptr : rv;
+  const char * bamrecord::hasTag(const char * tag) const {
+    if(tag==NULL||tag==nullptr || !__impl->__aux_size) {
+      return nullptr;
+    }
+    const char * rv = __impl->__aux.get(),
+      * end = (__impl->__aux.get() + __impl->__aux_size);
+    
+    for( ; rv < end-1 ; rv++)
+      {
+	if( *rv == tag[0] &&
+	    *(rv+1) == tag[1]) return rv;
+      }
+    return nullptr;
+    //const char * rv = strstr(__impl->__aux.get(),tag);
+    //return(rv==NULL) ? nullptr : rv;
   }
-
-  const char * bamrecord::hasTag(const char * start, const char * tag) {
-    if(start == NULL || start == nullptr || tag == NULL || tag == nullptr) return nullptr;
+  
+  const char * bamrecord::hasTag(const char * start, const char * tag) const {
+    if(start == NULL || start == nullptr || tag == NULL || tag == nullptr || !__impl->__aux_size) return nullptr;
     const char * rv = strstr(start,tag);
     return(rv==NULL) ? nullptr : rv;
   }
 
-  std::string bamrecord::aux() const
+  bamaux bamrecord::aux(const char * tag) const {
+    const char * tagspot = this->hasTag(tag);
+    if( tagspot == nullptr ) return bamaux();
+    std::unique_ptr<char[]> __tag(new char[3]);
+    __tag[0]=*tagspot;
+    __tag[1]=*(tagspot+1);
+    __tag[2] = '\0';
+    char __val_type = *(tagspot+2);
+    //cout << "check: "<< tag << ' ' << __val_type << '\n';
+    size_t valsize = (__val_type == 'A' ) ? 2*sizeof(char) : auxTagSize(__val_type);
+    if(!valsize && !(__val_type=='Z'||__val_type=='B'))  return bamaux(); //something goofed
+    std::unique_ptr<unsigned char[]> value;
+    if(__val_type == 'Z')
+      {
+	const char * EOS = std::find( tagspot+2, reinterpret_cast<const char*>(&__impl->__aux[0]) + __impl->__aux_size, '\0' );
+	valsize = EOS - (tagspot+2) + 1;
+	value = std::unique_ptr<unsigned char[]>(new unsigned char[valsize]);
+	copy( tagspot + 3, EOS+1, value.get() );
+      }
+    else if (__val_type == 'B')
+      {
+      }
+    else
+      {
+	//Copy the tag value
+	value = std::unique_ptr<unsigned char[]>(new unsigned char[valsize]);
+	std::copy( tagspot+3, tagspot+3+valsize-1, value.get() );
+	value[valsize-1]='\0';
+      }
+    return bamaux(valsize,__tag,__val_type,value);
+  }
+
+  std::string bamrecord::allaux() const
   {
+    if(!__impl->__aux_size) return std::string();
     string rv;
-    size_t start = 0,end=strlen(__impl->__aux.get());
+    size_t start = 0,end=__impl->__aux_size;
+
     char tag[3];
     tag[2]='\0';
     while( start < end )

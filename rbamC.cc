@@ -16,7 +16,36 @@
 using namespace std;
 using Sequence::bamreader;
 using Sequence::bamrecord;
+using Sequence::bamaux;
 using Sequence::samflag;
+
+using readbucket = map< string,pair<bamrecord,bamrecord> >;
+
+void addRead( readbucket & rb, bamrecord & b )
+{
+  auto n = b.read_name();
+  n.erase(n.end()-2,n.end());
+  auto i = rb.find(n);
+  if(i == rb.end())
+    {
+      rb.insert( make_pair(n, make_pair(std::move(b),bamrecord())) );
+    }
+  else
+    {
+      i->second.second = std::move(b);
+      assert(!i->second.second.empty());
+    }
+}
+
+unsigned countReads(const readbucket & rb)
+{
+  unsigned rv=0;
+  for( auto i = rb.cbegin() ; i != rb.cend() ; ++i )
+    {
+      if(! i->second.second.empty()) ++rv;
+    }
+  return rv;
+}
 
 int main( int argc, char ** argv )
 {
@@ -25,57 +54,53 @@ int main( int argc, char ** argv )
   
   bamreader reader( argv[1] );
   unsigned nread=0;
-  std::vector<bamrecord> PAR,UL;
-  //vector< pair<string,bamrecord > > vb2;
-  PAR.reserve(50000000);
-  UL.reserve(50000000);
+  readbucket PAR,UL,DIV,UM;
   while(! reader.eof() && !reader.error() )
     {
       bamrecord b(reader.next_record());
       if(b.empty()) break;
-
-      if( b.refid() != -1 && b.next_refid() != -1 ) //if both reads mapped
-	{
-	  if( b.refid() != b.next_refid() ) //both map to different scaffolds
+       ++nread;
+       samflag sf = b.flag();
+      //if( b.refid() != -1 && b.next_refid() != -1 ) //if both reads mapped
+      //RELEARNING OLD LESSONS HERE: SAMTOOLS AND/OR BWA GOOF
+      if(!sf.query_unmapped  && !sf.mate_unmapped)
+      	{
+	  bamaux ba = b.aux("XT");
+	  if(ba.value[0]=='U') //Read is flagged as uniquely-mapping
 	    {
-	      UL.emplace_back(std::move(b));
-	    }
-	  else
-	    {
-	      samflag sf = b.flag();
-	      assert(sf.is_paired);
-	      if( sf.qstrand == sf.mstrand && b.pos() != b.next_pos())
+	      if( b.refid() != b.next_refid() ) //both map to different scaffolds
 		{
-		  if( b.read_name() == "1:1:234846:0" ||
-		      b.read_name() == "1:1:234846:1" )
+		  addRead(UL,b);
+		}
+	      else
+		{
+		  if( sf.qstrand == sf.mstrand && b.pos() != b.next_pos()) //On same strand and chromo
 		    {
-		      cout << b.mapq() << ' ' << b.seq() << ' '
-			   << b.aux() << '\n';
+		      addRead(PAR,b);
 		    }
-		  if( b.refid() ==  b.next_refid() ) {
-		    PAR.emplace_back(std::move(b));
-		  }
+		  else if( (!sf.qstrand && b.pos() > b.next_pos()) ||
+		       (!sf.mstrand && b.next_pos() > b.pos()) ) //DIV
+		    {
+		      addRead(DIV,b);
+		    }
 		}
 	    }
 	}
-      ++nread;
     }
-
-  //Sort the alignments by read name
-  std::sort( PAR.begin(), PAR.end(),
-	     [](const bamrecord & lhs, const bamrecord & rhs) {
-	       return lhs.read_name() < rhs.read_name();
-	     } );
-
-  std::sort( UL.begin(), UL.end(),
-	     [](const bamrecord & lhs, const bamrecord & rhs) {
-	       return lhs.read_name() < rhs.read_name();
-	     } );
-  std::for_each(PAR.begin(),PAR.end(),
-		[](const bamrecord & b) {
-		  cout << b.read_name() << '\n';
-		});
-  cout << nread << " alignments processed\n";
+       
+  unsigned NPAR=countReads(PAR),
+    NUL=countReads(UL),
+    NDIV=countReads(DIV);
+  /*
+  cout << nread << " alignments processed\n"
+       << NPAR << " PAR reads\n"
+       << NUL << " UL reads\n"
+       << NDIV << " DIV reads\n";
+  */
+  for(auto i = DIV.cbegin(); i!=DIV.cend();++i)
+    {
+      cout << i->first << '\n';
+    }
 }
 
 

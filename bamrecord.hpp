@@ -9,9 +9,48 @@
 
 namespace Sequence
 {
+  //!
+  struct bamaux 
+  {
+    /*! 
+      The size, in bytes, of value.
+      If value_type is a string type,
+      the length of the string stored in 
+      value will be size + 1 due to \0
+      padding at the end.
+
+      \note size will be set to 0
+      If the programmer requests the an aux
+      data field from and alignment, and that 
+      data field does not exist.
+   */
+    const size_t size;
+    //! The BAM value_type of the aux data
+    const char value_type;
+    //! The BAM tag type of the aux data
+    mutable std::unique_ptr<char[]> tag;
+    //! The value of the aux data, in raw bits
+    mutable std::unique_ptr<unsigned char[]> value;
+    //Constructors
+
+    /*! For an empty data set.  
+      Member data will be set to nonsensical values
+      and pointer data set to std::nullptr
+    */
+    bamaux(); 
+    //! For non-empty data
+    bamaux( size_t,
+	    std::unique_ptr<char[]> &,
+	    char,
+	    std::unique_ptr<unsigned char[]> & );
+    //! Move constructor
+    bamaux( bamaux && );
+  };
 
   //fwd declaration
   class bamrecordImpl;
+
+  //! A single alignment record from a BAM file
   class bamrecord 
   {
   private:
@@ -22,6 +61,7 @@ namespace Sequence
     using U8 = std::uint8_t;
     //constructors
     bamrecord( gzFile in );
+    bamrecord( );
     bamrecord( const bamrecord & );
     //move constructors
     bamrecord(bamrecord&&);
@@ -65,7 +105,7 @@ namespace Sequence
     //! \return The length of the read
     std::int32_t l_seq() const;
     //! \return All auxillary data as a single string
-    std::string aux() const;
+    std::string allaux() const;
     //Iterator member functions
     //! Beginning of encoded sequence data. Each integer contains 2 bases, with first base stored in the "high nibble"
     const std::uint8_t * seq_cbeg() const;
@@ -79,11 +119,13 @@ namespace Sequence
     /*! Search auxillary data for a specific tag
       \return The first position of the match if it exists, nullptr if it does not
     */
-    const char * hasTag(const char * tag);
+    const char * hasTag(const char * tag) const;
     /*! Search auxillary data for a specific tag, beginning at position start
       \return The first position of the match if it exists, nullptr if it does not
     */
-    const char * hasTag(const char * start, const char * tag);
+    const char * hasTag(const char * start, const char * tag) const;
+
+    bamaux aux(const char * tag) const;
   };
 
 }
