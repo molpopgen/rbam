@@ -92,6 +92,13 @@ namespace Sequence
     //value = 
   }
 
+  rawbam::rawbam( size_t && __block_size,
+		  std::unique_ptr<char[]> && __block) : block_size(move(__block_size)),
+							block(move(__block))
+  {
+    //To be implemented
+  }
+
   //Implementation class details
   class bamrecordImpl
   {
@@ -312,6 +319,13 @@ namespace Sequence
     return &__impl->__qual[0]+__impl->__rdata1[static_cast<size_t>(I32s::L_SEQ)];
   }
 
+  rawbam bamrecord::raw() const
+  {
+    size_t bsize = __impl->__block_size;
+    std::unique_ptr<char[]> data;
+
+    return rawbam(std::move(bsize),std::move(data));
+  }
   samflag bamrecord::flag() const
   {
     return samflag( __impl->__rdata2[static_cast<size_t>(U32s::FLAG)]);
@@ -359,8 +373,6 @@ namespace Sequence
 	    *(rv+1) == tag[1]) return rv;
       }
     return nullptr;
-    //const char * rv = strstr(__impl->__aux.get(),tag);
-    //return(rv==NULL) ? nullptr : rv;
   }
   
   const char * bamrecord::hasTag(const char * start, const char * tag) const {

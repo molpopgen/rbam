@@ -25,13 +25,44 @@ namespace Sequence
     bamreader( const char * bamfilename = nullptr);
     ~bamreader();
 
-    //! \retun The next alignment in the file
+    //! \return The next alignment in the file
     bamrecord next_record() const;
+    /*!
+      \return An alignment record from a specific offset.  Will return an empty record
+      if the gzseek functions return an error state.
+      \warning If you give an offset that is not the start of a record, the results are undefined
+      \note The stream offset is restored to where it was prior to making the call
+    */
+    bamrecord record_at_pos( z_off_t ) const;
     //! \return True if bam file is at EOF, false otherwise
     bool eof() const;
     //! \return True if an error was encountered while reading the bam file, false otherwise
     bool error() const;
- 
+
+    //Stream manipulation
+
+    /*! 
+      Calls gzrewind on the input file.  
+      \return The return value of gzrewind
+    */
+    int rewind();
+    /*!
+      Calls gzseek on the input file
+      \return The return value of gzseek
+    */
+    int seek( z_off_t offset, int whence );
+    /*!
+      Calls gzclose on the input file
+      \return The return value of gzclose
+    */
+    int close();
+
+    /*!
+      Calls gztell on input file
+      \return The return value of gztell
+    */
+    z_off_t tell();
+
     //! Iterator type (const only!)
     using refdata_citr = std::vector< std::pair<std::string,I32> >::const_iterator;
     //! size_type for the container of reference data

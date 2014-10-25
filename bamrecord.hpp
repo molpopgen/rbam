@@ -47,6 +47,14 @@ namespace Sequence
     bamaux( bamaux && );
   };
 
+  struct rawbam
+  {
+    const size_t block_size;
+    std::unique_ptr<char[]> block;
+    explicit rawbam( size_t &&,
+		     std::unique_ptr<char[]> && );
+  };
+
   //fwd declaration
   class bamrecordImpl;
 
@@ -115,7 +123,8 @@ namespace Sequence
     const char * qual_cbeg() const;
     //! One past end of quality data
     const char * qual_cend() const;
-
+    //! Returns the record in a raw format
+    rawbam raw() const;
     /*! Search auxillary data for a specific tag
       \return The first position of the match if it exists, nullptr if it does not
     */

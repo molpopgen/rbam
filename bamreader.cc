@@ -68,6 +68,18 @@ namespace Sequence
     return bamrecord(__impl->in);
   }
 
+  bamrecord bamreader::record_at_pos( z_off_t offset ) const 
+  {
+    z_off_t current = gztell(__impl->in);
+    int check = gzseek(__impl->in, offset, SEEK_SET );
+    if(check==-1) return bamrecord();
+    bamrecord b(__impl->in);
+    //restore offset
+    check = gzseek(__impl->in, current, SEEK_SET );
+    if(check == -1) return bamrecord();
+    return b;
+  }
+
   bool bamreader::eof() const
   {
     return gzeof(__impl->in);
@@ -76,6 +88,26 @@ namespace Sequence
   bool bamreader::error() const
   {
     return __impl->__errorstate;
+  }
+
+  int bamreader::rewind() 
+  {
+    return gzrewind(__impl->in);
+  }
+
+  int bamreader::seek( z_off_t offset, int whence )
+  {
+    return gzseek(__impl->in,std::move(offset),std::move(whence));
+  }
+
+  int bamreader::close()
+  {
+    return gzclose(__impl->in);
+  }
+
+  z_off_t bamreader::tell() 
+  {
+    return gztell(__impl->in);
   }
 
   bamreader::refdataObj bamreader::operator[](const size_type & i) {
