@@ -33,7 +33,7 @@ namespace Sequence
       \warning If you give an offset that is not the start of a record, the results are undefined
       \note The stream offset is restored to where it was prior to making the call
     */
-    bamrecord record_at_pos( z_off_t ) const;
+    bamrecord record_at_pos( std::int64_t ) const;
     //! \return True if bam file is at EOF, false otherwise
     bool eof() const;
     //! \return True if an error was encountered while reading the bam file, false otherwise
@@ -50,7 +50,7 @@ namespace Sequence
       Calls gzseek on the input file
       \return The return value of gzseek
     */
-    int seek( z_off_t offset, int whence );
+    int seek( std::int64_t offset, int whence );
     /*!
       Calls gzclose on the input file
       \return The return value of gzclose
@@ -61,7 +61,7 @@ namespace Sequence
       Calls gztell on input file
       \return The return value of gztell
     */
-    z_off_t tell();
+    std::int64_t tell();
 
     //! Iterator type (const only!)
     using refdata_citr = std::vector< std::pair<std::string,I32> >::const_iterator;

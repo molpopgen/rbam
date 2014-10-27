@@ -63,7 +63,7 @@ int main( int argc, char ** argv )
   //while(! reader.eof() && !reader.error() )
   while(1)
     {
-      z_off_t recstart = reader.tell();
+      auto recstart = reader.tell();
       bamrecord b(reader.next_record());
       if(b.empty()) break;
       ++nread;
@@ -114,25 +114,29 @@ int main( int argc, char ** argv )
   //This is fucking slow.
   cerr << "beginning pass2\n";
   //reset reader to start of reads (see above)
-  reader.seek( pos, SEEK_SET );
+  //std::cerr << reader.tell() << ' ';
+  auto rv = reader.seek( pos, SEEK_SET );
+  //std::cerr << reader.tell() << ' ' << rv << '\n';
   nread=0;
   unsigned NUM=0;
-  std::chrono::system_clock clock;
-  auto start = clock.now();
+  //std::chrono::system_clock clock;
+  //auto start = clock.now();
   //while(! reader.eof() && !reader.error() )
   while(1)
     {
       bamrecord b(reader.next_record());
       if(b.empty()) break;
       ++nread;
+      /*
       if(nread && nread % 10000 == 0.) 
 	{
 	  auto now = clock.now();
 	  auto elapsed = now-start;
 	  start = now;
 	  std::cout << elapsed.count() << ' '
-		    << nread << ' ' << NUM << '\n';
-	}
+	  << nread << ' ' << NUM << '\n';
+	  }
+      */
       samflag r(b.flag());
       if(!r.query_unmapped)
 	{
@@ -153,11 +157,12 @@ int main( int argc, char ** argv )
 		  assert(n == n2);
 #endif
 		  ++NUM;
+		  Mpos.erase(i);
 		}
 	    }
 	}
     }
-
+  
   unsigned NPAR=countReads(PAR),
     NUL=countReads(UL),
     NDIV=countReads(DIV);
@@ -167,7 +172,7 @@ int main( int argc, char ** argv )
        << NUL << " UL reads\n"
        << NDIV << " DIV reads\n"
        << NUM << " UM reads\n";
-
+  
   // for(auto i = DIV.cbegin(); i!=DIV.cend();++i)
   //   {
   //     if(!i->second.second.empty())

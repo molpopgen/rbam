@@ -96,7 +96,7 @@ namespace Sequence
     //return gzrewind(__impl->in);
   }
 
-  int bamreader::seek( z_off_t offset, int whence )
+  int bamreader::seek( std::int64_t offset, int whence )
   {
     return bgzf_seek(__impl->in,std::move(offset),std::move(whence));
   }
