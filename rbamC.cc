@@ -60,7 +60,8 @@ int main( int argc, char ** argv )
   unsigned nread=0;
   readbucket PAR,UL,DIV;
   Mbucket Mpos; //locations of repetitive reads in the file
-  while(! reader.eof() && !reader.error() )
+  //while(! reader.eof() && !reader.error() )
+  while(1)
     {
       z_off_t recstart = reader.tell();
       bamrecord b(reader.next_record());
@@ -118,7 +119,8 @@ int main( int argc, char ** argv )
   unsigned NUM=0;
   std::chrono::system_clock clock;
   auto start = clock.now();
-  while(! reader.eof() && !reader.error() )
+  //while(! reader.eof() && !reader.error() )
+  while(1)
     {
       bamrecord b(reader.next_record());
       if(b.empty()) break;

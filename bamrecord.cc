@@ -112,7 +112,7 @@ namespace Sequence
     std::unique_ptr<U8[]> __seq;
 
     bamrecordImpl(  );
-    bamrecordImpl( gzFile in );
+    bamrecordImpl( BGZF * in );
     bamrecordImpl( const bamrecordImpl & );
     bamrecordImpl& operator=( const bamrecordImpl &);
   };
@@ -181,7 +181,7 @@ namespace Sequence
     return *this;
   }
 
-  bamrecordImpl::bamrecordImpl( gzFile in ) : __empty(false),
+  bamrecordImpl::bamrecordImpl( BGZF * in ) : __empty(false),
 					      __read(0),
 					      __aux_size(0),
 					      __read_name(nullptr),
@@ -190,14 +190,14 @@ namespace Sequence
 					      __ncigop(nullptr),
 					      __seq(nullptr)
   {
-    int test = gzread(in,&__block_size,sizeof(I32));
+    int test = bgzf_read(in,&__block_size,sizeof(I32));
     if(!test || test == -1) { 
       __empty = true;
       return;
     }
-    __read += gzread(in,&__rdata1[static_cast<size_t>(I32s::REFID)],2*sizeof(I32));
-    __read += gzread(in,&__rdata2[static_cast<size_t>(U32s::BIN_MQ_NL)],2*sizeof(I32));
-    __read += gzread(in,&__rdata1[static_cast<size_t>(I32s::L_SEQ)],4*sizeof(I32));
+    __read += bgzf_read(in,&__rdata1[static_cast<size_t>(I32s::REFID)],2*sizeof(I32));
+    __read += bgzf_read(in,&__rdata2[static_cast<size_t>(U32s::BIN_MQ_NL)],2*sizeof(I32));
+    __read += bgzf_read(in,&__rdata1[static_cast<size_t>(I32s::L_SEQ)],4*sizeof(I32));
 
     __rdata2[static_cast<size_t>(U32s::BIN)] = __rdata2[static_cast<size_t>(U32s::BIN_MQ_NL)] >> 16;
     __rdata2[static_cast<size_t>(U32s::MAPQ)] = (__rdata2[static_cast<size_t>(U32s::BIN_MQ_NL)] ^ __rdata2[static_cast<size_t>(U32s::BIN)]<<16)>>8;
@@ -206,28 +206,28 @@ namespace Sequence
     __rdata2[static_cast<size_t>(U32s::NC)] = __rdata2[static_cast<size_t>(U32s::FLAG_NC)] ^ (__rdata2[static_cast<size_t>(U32s::FLAG)]<<16);
 
     __read_name = std::unique_ptr<char[]>(new char[__rdata2[static_cast<size_t>(U32s::L_READ_NAME)]]);
-    __read += gzread( in,__read_name.get(),__rdata2[static_cast<size_t>(U32s::L_READ_NAME)]*sizeof(char) );
+    __read += bgzf_read( in,__read_name.get(),__rdata2[static_cast<size_t>(U32s::L_READ_NAME)]*sizeof(char) );
 
     __ncigop = std::unique_ptr<U32[]>( new U32[__rdata2[static_cast<size_t>(U32s::NC)]] );
-    __read += gzread( in, __ncigop.get(),__rdata2[static_cast<size_t>(U32s::NC)]*sizeof(U32) );
+    __read += bgzf_read( in, __ncigop.get(),__rdata2[static_cast<size_t>(U32s::NC)]*sizeof(U32) );
 
     __seq = std::unique_ptr<U8[]>(new U8[(__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1)/2]);
-    __read += gzread( in, __seq.get(), ((__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1)/2)*sizeof(U8) );
+    __read += bgzf_read( in, __seq.get(), ((__rdata1[static_cast<size_t>(I32s::L_SEQ)]+1)/2)*sizeof(U8) );
 
     __qual = std::unique_ptr<char[]>(new char[__rdata1[static_cast<size_t>(I32s::L_SEQ)]]);
-    __read += gzread( in, __qual.get(),__rdata1[static_cast<size_t>(I32s::L_SEQ)]*sizeof(char) );
+    __read += bgzf_read( in, __qual.get(),__rdata1[static_cast<size_t>(I32s::L_SEQ)]*sizeof(char) );
     if( __read < __block_size )
       {
 	__aux_size = __block_size-__read;
 	__aux = std::unique_ptr<char[]>(new char[__aux_size]);
-	__read += gzread( in,__aux.get(), __aux_size );
+	__read += bgzf_read( in,__aux.get(), __aux_size );
       }
     assert(__read == __block_size);
   }
 
   bamrecord::bamrecord(  ) : __impl( std::unique_ptr<bamrecordImpl>(new bamrecordImpl()) ) {}
 
-  bamrecord::bamrecord( gzFile in ) : __impl( std::unique_ptr<bamrecordImpl>(new bamrecordImpl(in)) ) {}
+  bamrecord::bamrecord( BGZF * in ) : __impl( std::unique_ptr<bamrecordImpl>(new bamrecordImpl(in)) ) {}
 
   bamrecord::bamrecord( const bamrecord & rhs) : __impl(std::unique_ptr<bamrecordImpl>(new bamrecordImpl(*rhs.__impl))) {}
 

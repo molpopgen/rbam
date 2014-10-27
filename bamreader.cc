@@ -1,5 +1,5 @@
 #include <bamreader.hpp>
-#include <zlib.h>
+#include <htslib/bgzf.h>
 
 using std::string;
 
@@ -11,7 +11,7 @@ namespace Sequence
   {
   public:
     using I32 = std::int32_t;
-    gzFile in;
+    BGZF * in;
     bool __errorstate;
     char __magic[4];
     I32 __l_text,__n_ref;
@@ -24,32 +24,32 @@ namespace Sequence
 
   bamreaderImpl::~bamreaderImpl() 
   {
-    if(in != NULL) gzclose(in);
+    if(in != NULL) bgzf_close(in);
   }
 
   bamreaderImpl::bamreaderImpl(const char * bamfilename) :
-    in((bamfilename != nullptr) ? gzopen(bamfilename,"rb") : NULL),
+    in((bamfilename != nullptr) ? bgzf_open(bamfilename,"rb") : NULL),
     __errorstate(false),
     __htext(nullptr),
     __refdata(std::vector< std::pair<std::string,I32> >())
   {
     if(gzopen != NULL)
       {
-	gzread( in, &__magic[0], 4*sizeof(char) );
+	bgzf_read( in, &__magic[0], 4*sizeof(char) );
 	if(string({__magic[0],__magic[1],__magic[2]}) != string("BAM")) __errorstate = 1;
 	if(!__errorstate)
 	  {
-	    gzread( in, &__l_text, sizeof(I32) );
+	    bgzf_read( in, &__l_text, sizeof(I32) );
 	    __htext = std::unique_ptr<char[]>( new char[__l_text] );
-	    gzread(in,__htext.get(),__l_text*sizeof(char));
-	    gzread(in,&__n_ref,sizeof(I32));
+	    bgzf_read(in,__htext.get(),__l_text*sizeof(char));
+	    bgzf_read(in,&__n_ref,sizeof(I32));
 	    for(decltype(__n_ref) i = 0 ; i < __n_ref ; ++i )
 	      {
 		I32 l_name,l_ref;
-		gzread( in,&l_name,sizeof(I32) );
+		bgzf_read( in,&l_name,sizeof(I32) );
 		char name[l_name];
-		gzread( in,&name[0],l_name*sizeof(char));
-		gzread( in,&l_ref,sizeof(I32) );
+		bgzf_read( in,&name[0],l_name*sizeof(char));
+		bgzf_read( in,&l_ref,sizeof(I32) );
 		__refdata.push_back(std::make_pair(std::string(name),l_ref));
 	      }
 	  }
@@ -68,21 +68,21 @@ namespace Sequence
     return bamrecord(__impl->in);
   }
 
-  bamrecord bamreader::record_at_pos( z_off_t offset ) const 
+  bamrecord bamreader::record_at_pos( std::int64_t offset ) const 
   {
-    z_off_t current = gztell(__impl->in);
-    int check = gzseek(__impl->in, offset, SEEK_SET );
+    auto current = bgzf_tell(__impl->in);
+    int check = bgzf_seek(__impl->in, offset, SEEK_SET );
     if(check==-1) return bamrecord();
     bamrecord b(__impl->in);
     //restore offset
-    check = gzseek(__impl->in, current, SEEK_SET );
+    check = bgzf_seek(__impl->in, current, SEEK_SET );
     if(check == -1) return bamrecord();
     return b;
   }
 
   bool bamreader::eof() const
   {
-    return gzeof(__impl->in);
+    //return gzeof(__impl->in);
   }
 
   bool bamreader::error() const
@@ -92,22 +92,23 @@ namespace Sequence
 
   int bamreader::rewind() 
   {
-    return gzrewind(__impl->in);
+    return bgzf_seek(__impl->in,0L,SEEK_SET);
+    //return gzrewind(__impl->in);
   }
 
   int bamreader::seek( z_off_t offset, int whence )
   {
-    return gzseek(__impl->in,std::move(offset),std::move(whence));
+    return bgzf_seek(__impl->in,std::move(offset),std::move(whence));
   }
 
   int bamreader::close()
   {
-    return gzclose(__impl->in);
+    return bgzf_close(__impl->in);
   }
 
-  z_off_t bamreader::tell() 
+  std::int64_t bamreader::tell() 
   {
-    return gztell(__impl->in);
+    return bgzf_tell(__impl->in);
   }
 
   bamreader::refdataObj bamreader::operator[](const size_type & i) {

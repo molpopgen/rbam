@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <zlib.h>
+#include <htslib/bgzf.h>
 #include <Sequence/samrecord.hpp>
 
 namespace Sequence
@@ -68,7 +68,7 @@ namespace Sequence
     using I32 = std::int32_t;
     using U8 = std::uint8_t;
     //constructors
-    bamrecord( gzFile in );
+    bamrecord( BGZF * in );
     bamrecord( );
     bamrecord( const bamrecord & );
     //move constructors

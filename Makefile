@@ -4,7 +4,7 @@ CXXFLAGS=-std=c++11 -Wall -W -Wunused -O3 -I.
 
 all: rbam.o test.o rbamC.o bamreader.o bamrecord.o  uptr.o  reader.o
 	$(CXX) $(CXXFLAGS) -o rbam rbam.o -lz
-	$(CXX) $(CXXFLAGS) -o rbamC rbamC.o  bamreader.o bamrecord.o  -lz -lsequence
+	$(CXX) $(CXXFLAGS) -o rbamC rbamC.o  bamreader.o bamrecord.o  -lz -lsequence -lhts
 	$(CXX) $(CXXFLAGS) -o test test.o
 	$(CXX) $(CXXFLAGS) -o uptr uptr.o
 	$(CXX) $(CXXFLAGS) -o reader reader.o -lsequence
