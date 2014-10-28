@@ -430,7 +430,8 @@ namespace Sequence
 		    I32 v = *(U32*)(start++);
 		    rv += to_string(v);
 		  }
-		rv += ',';
+		if(i<Bsize-1)
+		  rv += ',';
 	      }
 	  }
 	else if (val_type == 'Z')
