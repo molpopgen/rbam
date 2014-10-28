@@ -336,6 +336,39 @@ namespace Sequence
       }
     else if (__val_type == 'B')
       {
+	char Btype = (*tagspot++);
+	I32 Bsize = *(I32*)(tagspot++);
+	if ( Btype == 'c' )
+	  {
+	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(I8)]);
+	    copy( tagspot, tagspot + Bsize*sizeof(I8), value.get() );
+	  }
+	else if (Btype == 'C')
+	  {
+	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(U8)]);
+	    copy( tagspot, tagspot + Bsize*sizeof(U8), value.get() );
+	  }
+	else if (Btype == 's')
+	  {
+	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(I16)]);
+	    copy( tagspot, tagspot + Bsize*sizeof(I16), value.get() );
+	  }
+	else if (Btype == 'S')
+	  {
+	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(U16)]);
+	    copy( tagspot, tagspot + Bsize*sizeof(U16), value.get() );
+
+	  }
+	else if (Btype == 'i')
+	  {
+	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(I32)]);
+	    copy( tagspot, tagspot + Bsize*sizeof(I32), value.get() );
+	  }
+	else if (Btype == 'I')
+	  {
+	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(U32)]);
+	    copy( tagspot, tagspot + Bsize*sizeof(U32), value.get() );
+	  }
       }
     else
       {
