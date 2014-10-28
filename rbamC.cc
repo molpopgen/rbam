@@ -21,7 +21,7 @@ using Sequence::bamaux;
 using Sequence::samflag;
 
 using readbucket = map< string,pair<bamrecord,bamrecord> >;
-using Mbucket = map<string,z_off_t>;
+using Mbucket = map<string,std::int64_t>;
 
 void addRead( readbucket & rb, bamrecord & b, bool skipSecond = false )
 {
