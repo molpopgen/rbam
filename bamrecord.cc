@@ -394,8 +394,44 @@ namespace Sequence
 	    I32 v = *(U32*)(start++);
 	    rv += to_string(v);
 	  }
-	else if (val_type == 'B')//not impl
+	else if (val_type == 'B')//EXPERIMENTAL
 	  {
+	    char Btype = (*start++);
+	    I32 Bsize = *(I32*)(start++);
+	    for( auto i = 0 ; i < Bsize ; ++i )
+	      {
+		if ( Btype == 'c' )
+		  {
+		    I32 v = *(I8*)(start++);
+		    rv += to_string(v);
+		  }
+		else if (Btype == 'C')
+		  {
+		    I32 v = *(U8*)(start++);
+		    rv += to_string(v);
+		  }
+		else if (Btype == 's')
+		  {
+		    I32 v = *(I16*)(start++);
+		    rv += to_string(v);
+		  }
+		else if (Btype == 'S')
+		  {
+		    I32 v = *(U16*)(start++);
+		    rv += to_string(v);
+		  }
+		else if (Btype == 'i')
+		  {
+		    I32 v = *(I32*)(start++);
+		    rv += to_string(v);
+		  }
+		else if (Btype == 'I')
+		  {
+		    I32 v = *(U32*)(start++);
+		    rv += to_string(v);
+		  }
+		rv += ',';
+	      }
 	  }
 	else if (val_type == 'Z')
 	  {
