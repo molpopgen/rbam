@@ -1,6 +1,6 @@
 CXX=c++
 CXXFLAGS=-std=c++11 -Wall -W -Wunused -O3 -I. 
-#CXXFLAGS=-std=c++11 -Wall -W -O0 -g -I.
+#CXXFLAGS=-std=c++11 -Wall -W  -g -I.
 
 all: rbam.o test.o rbamC.o bamreader.o bamrecord.o  uptr.o  reader.o
 	$(CXX) $(CXXFLAGS) -o rbam rbam.o -lz

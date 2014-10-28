@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <htslib/bgzf.h>
+//#include <htslib/bgzf.h>
 #include <Sequence/samrecord.hpp>
 
 namespace Sequence
@@ -68,7 +68,9 @@ namespace Sequence
     using I32 = std::int32_t;
     using U8 = std::uint8_t;
     //constructors
-    bamrecord( BGZF * in );
+    //bamrecord( BGZF * in );
+    bamrecord( std::int32_t blocksize,
+	       std::unique_ptr<char[]> && block);
     bamrecord( );
     bamrecord( const bamrecord & );
     //move constructors
@@ -132,7 +134,7 @@ namespace Sequence
     /*! Search auxillary data for a specific tag, beginning at position start
       \return The first position of the match if it exists, nullptr if it does not
     */
-    const char * hasTag(const char * start, const char * tag) const;
+    //const char * hasTag(const char * start, const char * tag) const;
 
     bamaux aux(const char * tag) const;
   };

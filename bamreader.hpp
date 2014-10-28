@@ -29,7 +29,7 @@ namespace Sequence
     bamrecord next_record() const;
     /*!
       \return An alignment record from a specific offset.  Will return an empty record
-      if the gzseek functions return an error state.
+      if the bgzf_seek functions return an error state.
       \warning If you give an offset that is not the start of a record, the results are undefined
       \note The stream offset is restored to where it was prior to making the call
     */
@@ -42,24 +42,24 @@ namespace Sequence
     //Stream manipulation
 
     /*! 
-      Calls gzrewind on the input file.  
-      \return The return value of gzrewind
+      Rewinds bam file to the beginning (position 0L)
+      \return The return value of bgzf_seek
     */
     int rewind();
     /*!
-      Calls gzseek on the input file
-      \return The return value of gzseek
+      Calls bgzf_seek on the input file
+      \return The return value of bgzf_seek
     */
     int seek( std::int64_t offset, int whence );
     /*!
-      Calls gzclose on the input file
-      \return The return value of gzclose
+      Calls bgzf_close on the input file
+      \return The return value of bgzf_close
     */
     int close();
 
     /*!
-      Calls gztell on input file
-      \return The return value of gztell
+      Calls bgzf_tell on input file
+      \return The return value of bgzf_tell
     */
     std::int64_t tell();
 

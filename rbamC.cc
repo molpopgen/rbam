@@ -51,21 +51,18 @@ unsigned countReads(const readbucket & rb)
 
 int main( int argc, char ** argv )
 {
-  gzFile in = gzopen(argv[1],"rb");
-  if(in == NULL) { exit(0);}
-  
   bamreader reader( argv[1] );
   //We have now processed all the header info, so let's record where we are
   auto pos = reader.tell();
   unsigned nread=0;
   readbucket PAR,UL,DIV;
   Mbucket Mpos; //locations of repetitive reads in the file
-  //while(! reader.eof() && !reader.error() )
-  while(1)
+  while(! reader.eof() && !reader.error() )
+  //while(1)
     {
       auto recstart = reader.tell();
       bamrecord b(reader.next_record());
-      if(b.empty()) break;
+      if(b.empty()) {  break; }
       ++nread;
       samflag sf(b.flag());
       if(!sf.query_unmapped  && !sf.mate_unmapped) //Both reads are mapped
@@ -74,21 +71,21 @@ int main( int argc, char ** argv )
 	  if(ba.value[0]=='U') //Read is flagged as uniquely-mapping
 	    {
 	      if( b.refid() != b.next_refid() ) //both map to different scaffolds
-		{
-		  addRead(UL,b);
-		}
+	  	{
+	  	  addRead(UL,b);
+	  	}
 	      else if ( b.pos() != b.next_pos()) //Don't map to same position
-		{
-		  if( sf.qstrand == sf.mstrand )
-		    {
-		      addRead(PAR,b);
-		    }
-		  else if( (sf.qstrand == 0 && b.pos() > b.next_pos()) ||
-			   (sf.mstrand == 0 && b.next_pos() > b.pos() ) )
-		    {
-		      addRead(DIV,b);
-		    }
-		}
+	  	{
+	  	  if( sf.qstrand == sf.mstrand )
+	  	    {
+	  	      addRead(PAR,b);
+	  	    }
+	  	  else if( (sf.qstrand == 0 && b.pos() > b.next_pos()) ||
+	  		   (sf.mstrand == 0 && b.next_pos() > b.pos() ) )
+	  	    {
+	  	      addRead(DIV,b);
+	  	    }
+	  	}
 	    } 
 	  else if (ba.value[0] == 'M') //Read is flagged as repetitively-mapping
 	    {
@@ -98,18 +95,26 @@ int main( int argc, char ** argv )
 	      n.erase(n.end()-2,n.end());
 	      auto i = Mpos.find(n);
 	      if( i == Mpos.end() )
-		{
-		  //This is a rep. read that we've not seen before
-		  Mpos.insert(make_pair(move(n),move(recstart)));
-		}
+	  	{
+	  	  //This is a rep. read that we've not seen before
+	  	  Mpos.insert(make_pair(move(n),move(recstart)));
+	  	}
 	      else
-		{
-		  Mpos.erase(i);
-		}
+	  	{
+	  	  Mpos.erase(i);
+	  	}
 	    }
 	}
     }
-
+  unsigned NPAR=countReads(PAR),
+    NUL=countReads(UL),
+    NDIV=countReads(DIV);
+  
+  cout << nread << " alignments processed\n"
+       << NPAR << " PAR reads\n"
+       << NUL << " UL reads\n"
+       << NDIV << " DIV reads\n";
+  exit(0);
   //Pass2: find the U reads that go with any M reads
   //This is fucking slow.
   cerr << "beginning pass2\n";
@@ -163,15 +168,15 @@ int main( int argc, char ** argv )
 	}
     }
   
-  unsigned NPAR=countReads(PAR),
-    NUL=countReads(UL),
-    NDIV=countReads(DIV);
+  // unsigned NPAR=countReads(PAR),
+  //   NUL=countReads(UL),
+  //   NDIV=countReads(DIV);
   
-  cout << nread << " alignments processed\n"
-       << NPAR << " PAR reads\n"
-       << NUL << " UL reads\n"
-       << NDIV << " DIV reads\n"
-       << NUM << " UM reads\n";
+  // cout << nread << " alignments processed\n"
+  //      << NPAR << " PAR reads\n"
+  //      << NUL << " UL reads\n"
+  //      << NDIV << " DIV reads\n"
+  //      << NUM << " UM reads\n";
   
   // for(auto i = DIV.cbegin(); i!=DIV.cend();++i)
   //   {
