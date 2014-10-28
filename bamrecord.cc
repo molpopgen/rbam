@@ -1,4 +1,3 @@
-#include <bamutil.hpp>
 #include <bamrecord.hpp>
 #include <algorithm>
 #include <cstring>
@@ -46,9 +45,12 @@ using I8 = std::int8_t;
 
 namespace Sequence 
 {
+  namespace bamutil {
+    const char int2seq[16] = {'=','A','C','M','G','R','S','V','T','W','Y','H','K','D','B','N'};
+    const char bamCig[9] = {'M','I','D','N','S','H','P','=','X'};
+  }
   using bamutil::int2seq;
   using bamutil::bamCig;
-
   bamaux::bamaux( ) : size(0),
 		      value_type(char()),
 		      tag(nullptr),
@@ -316,7 +318,6 @@ namespace Sequence
   }
   
   bamaux bamrecord::aux(const char * tag) const {
-    
     const char * tagspot = this->hasTag(tag);
     if( tagspot == nullptr ) return bamaux();
     std::unique_ptr<char[]> __tag(new char[3]);

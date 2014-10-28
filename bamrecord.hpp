@@ -4,12 +4,11 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-//#include <htslib/bgzf.h>
 #include <Sequence/samrecord.hpp>
 
 namespace Sequence
 {
-  //!
+  //! The extra data types at the end of a bam record.
   struct bamaux 
   {
     /*! 

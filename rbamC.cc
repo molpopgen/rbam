@@ -106,21 +106,17 @@ int main( int argc, char ** argv )
 	    }
 	}
     }
-  unsigned NPAR=countReads(PAR),
-    NUL=countReads(UL),
-    NDIV=countReads(DIV);
-  
-  cout << nread << " alignments processed\n"
-       << NPAR << " PAR reads\n"
-       << NUL << " UL reads\n"
-       << NDIV << " DIV reads\n";
-  exit(0);
+
   //Pass2: find the U reads that go with any M reads
-  //This is fucking slow.
   cerr << "beginning pass2\n";
   //reset reader to start of reads (see above)
   //std::cerr << reader.tell() << ' ';
   auto rv = reader.seek( pos, SEEK_SET );
+  if( rv == -1 ) 
+    {
+      cerr << "Error in seeking\n";
+      exit(0);
+    }
   //std::cerr << reader.tell() << ' ' << rv << '\n';
   nread=0;
   unsigned NUM=0;
@@ -168,15 +164,15 @@ int main( int argc, char ** argv )
 	}
     }
   
-  // unsigned NPAR=countReads(PAR),
-  //   NUL=countReads(UL),
-  //   NDIV=countReads(DIV);
+  unsigned NPAR=countReads(PAR),
+    NUL=countReads(UL),
+    NDIV=countReads(DIV);
   
-  // cout << nread << " alignments processed\n"
-  //      << NPAR << " PAR reads\n"
-  //      << NUL << " UL reads\n"
-  //      << NDIV << " DIV reads\n"
-  //      << NUM << " UM reads\n";
+  cout << nread << " alignments processed\n"
+       << NPAR << " PAR reads\n"
+       << NUL << " UL reads\n"
+       << NDIV << " DIV reads\n"
+       << NUM << " UM reads\n";
   
   // for(auto i = DIV.cbegin(); i!=DIV.cend();++i)
   //   {
