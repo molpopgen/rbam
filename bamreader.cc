@@ -120,6 +120,11 @@ namespace Sequence
     return __impl->__EOF;
   }
 
+  bool bamreader::has_eof() const 
+  {
+    return bgzf_check_EOF(__impl->in);
+  }
+
   bool bamreader::error() const
   {
     return __impl->__errorstate;

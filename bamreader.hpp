@@ -36,6 +36,8 @@ namespace Sequence
     bamrecord record_at_pos( std::int64_t ) const;
     //! \return True if bam file is at EOF, false otherwise
     bool eof() const;
+    //! \return The return value of bgzf_check_EOF, which checks for whether or not an EOF marker is present in the file.
+    bool has_eof() const;
     //! \return True if an error was encountered while reading the bam file, false otherwise
     bool error() const;
 
