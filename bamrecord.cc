@@ -74,13 +74,6 @@ namespace Sequence
     //value = 
   }
 
-  rawbam::rawbam( size_t && __block_size,
-		  std::unique_ptr<char[]> && __block) : block_size(move(__block_size)),
-							block(move(__block))
-  {
-    //To be implemented
-  }
-
   //Implementation class details
   class bamrecordImpl
   {
@@ -268,8 +261,10 @@ namespace Sequence
     return __impl->__qual_end;
   }
 
-  rawbam bamrecord::raw() const
+  std::pair< std::int32_t, const char * >
+  bamrecord::raw() const
   {
+    return std::make_pair(__impl->__block_size,__impl->__block.get());
   }
 
   samflag bamrecord::flag() const
