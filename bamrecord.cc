@@ -6,6 +6,11 @@
 using namespace std;
 
 namespace {
+
+  //The valid tag types and the number
+  static size_t nValTypes = 12; //C++ 1 extra tradition so we have a test-for-end with std::find
+  static const char ValTypes[12] = {'A','c','C','s','S','i','I','f','Z','H','B',char(255)}; //char(255) is not an allowed value, and terminates the array
+
   size_t auxTagSize(const char & c)
   {
     switch(c)
@@ -34,6 +39,33 @@ namespace {
       }
     return 0;
   }
+
+  size_t sizeofTag( const char & valtype,
+		    const char * auxpos,
+		    const char * auxposend)
+  {
+    if( std::find(&ValTypes[0],&ValTypes[0]+nValTypes,valtype) ==
+	&ValTypes[0]+nValTypes ) return 0; //error
+
+    if( valtype == 'A' ) return sizeof(char);
+    else if (valtype == 'Z')
+      {
+	return (std::find(auxpos,auxposend,'\0') - auxpos)+1;
+      }
+    else if (valtype == 'B' ) //Experimental/untested
+      {
+	char Btype = *auxpos;
+	std::int32_t Bsize = *(std::int32_t*)(auxpos+1);
+	return sizeof(char) + sizeof(std::int32_t) + Bsize*sizeof(auxTagSize(Btype));
+      }
+    else if (valtype == 'H')
+      {
+	return 0;
+      }
+    else if (valtype == 'f') return sizeof(float);
+
+    return auxTagSize(valtype);
+  }
 }
 
 using U32 = std::uint32_t;
@@ -53,27 +85,31 @@ namespace Sequence
   using bamutil::bamCig;
   bamaux::bamaux( ) : size(0),
 		      value_type(char()),
-		      tag(nullptr),
+		      //tag(),
 		      value(nullptr)
   {
   }
 
   bamaux::bamaux( size_t __size,
-		  std::unique_ptr<char[]> & __tag,
+		  //std::unique_ptr<char[]> & __tag,
+		  char __tag[3],
 		  char __value_type,
-		  std::unique_ptr<unsigned char[]> & __value) : size(std::move(__size)),
-								value_type(std::move(__value_type)),
-								tag(std::move(__tag)),
-								value(std::move(__value))
+		  std::unique_ptr<char[]> & __value) : size(std::move(__size)),
+						       value_type(std::move(__value_type)),
+						       value(std::move(__value))
   {
+    tag[0]=__tag[0];
+    tag[2]=__tag[1];
+    tag[1]=__tag[2];
   }
 
   bamaux::bamaux( bamaux && ba ) : size(std::move(ba.size)),
 				   value_type(std::move(ba.value_type)),
-				   tag(std::move(ba.tag)),
 				   value(std::move(ba.value))
   {
-    //value = 
+    tag[0]=ba.tag[0];
+    tag[2]=ba.tag[1];
+    tag[1]=ba.tag[2];
   }
 
   //Implementation class details
@@ -203,7 +239,6 @@ namespace Sequence
     this->__impl = std::unique_ptr<bamrecordImpl>(new bamrecordImpl(*rhs.__impl));
     return *this;
   }
-
   
   bamrecord::~bamrecord() {}
   
@@ -312,7 +347,12 @@ namespace Sequence
     for( ; rv < __impl->__aux_end-1 ; rv++)
       {
 	if( *rv == tag[0] &&
-	    *(rv+1) == tag[1]) return rv;
+	    *(rv+1) == tag[1]) 
+	  {
+	    if( std::find(&ValTypes[0],&ValTypes[0]+nValTypes,*(rv+2)) !=
+		&ValTypes[0]+nValTypes )
+	      return rv;
+	  }
       }
     return nullptr;
   }
@@ -320,67 +360,18 @@ namespace Sequence
   bamaux bamrecord::aux(const char * tag) const {
     const char * tagspot = this->hasTag(tag);
     if( tagspot == nullptr ) return bamaux();
-    std::unique_ptr<char[]> __tag(new char[3]);
-    __tag[0]=*tagspot;
-    __tag[1]=*(tagspot+1);
+    char __tag[3];
+    __tag[0]=*(tagspot++);
+    __tag[1]=*(tagspot++);
     __tag[2] = '\0';
-    char __val_type = *(tagspot+2);
-    size_t valsize = (__val_type == 'A' ) ? 2*sizeof(char) : auxTagSize(__val_type);
-    if(!valsize && !(__val_type=='Z'||__val_type=='B'))  return bamaux(); //something goofed
-    std::unique_ptr<unsigned char[]> value;
-    if(__val_type == 'Z')
-      {
-	const char * EOS = std::find( tagspot+2,  __impl->__aux_end, '\0' );
-	valsize = EOS - (tagspot+2) + 1;
-	value = std::unique_ptr<unsigned char[]>(new unsigned char[valsize]);
-	copy( tagspot + 3, EOS+1, value.get() );
-      }
-    else if (__val_type == 'B')
-      {
-	char Btype = (*tagspot++);
-	I32 Bsize = *(I32*)(tagspot++);
-	if ( Btype == 'c' )
-	  {
-	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(I8)]);
-	    copy( tagspot, tagspot + Bsize*sizeof(I8), value.get() );
-	  }
-	else if (Btype == 'C')
-	  {
-	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(U8)]);
-	    copy( tagspot, tagspot + Bsize*sizeof(U8), value.get() );
-	  }
-	else if (Btype == 's')
-	  {
-	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(I16)]);
-	    copy( tagspot, tagspot + Bsize*sizeof(I16), value.get() );
-	  }
-	else if (Btype == 'S')
-	  {
-	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(U16)]);
-	    copy( tagspot, tagspot + Bsize*sizeof(U16), value.get() );
-
-	  }
-	else if (Btype == 'i')
-	  {
-	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(I32)]);
-	    copy( tagspot, tagspot + Bsize*sizeof(I32), value.get() );
-	  }
-	else if (Btype == 'I')
-	  {
-	    value = std::unique_ptr<unsigned char[]>(new unsigned char[Bsize*sizeof(U32)]);
-	    copy( tagspot, tagspot + Bsize*sizeof(U32), value.get() );
-	  }
-      }
-    else
-      {
-	//Copy the tag value
-	value = std::unique_ptr<unsigned char[]>(new unsigned char[valsize]);
-	std::copy( tagspot+3, tagspot+3+valsize-1, value.get() );
-	value[valsize-1]='\0';
-      }
+    char __val_type = char(*tagspot++);
+    size_t valsize = sizeofTag(__val_type,tagspot,__impl->__aux_end);
+    if(!valsize) return bamaux();
+    std::unique_ptr<char[]> value(new char[valsize]);
+    std::copy( tagspot,tagspot+valsize,value.get() );
     return bamaux(valsize,__tag,__val_type,value);
   }
-
+    
   std::string bamrecord::allaux() const
   {
     if(__impl->__aux_beg == __impl->__aux_end) return std::string();

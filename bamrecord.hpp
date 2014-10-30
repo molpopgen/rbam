@@ -23,13 +23,14 @@ namespace Sequence
       data field from and alignment, and that 
       data field does not exist.
    */
-    const size_t size;
+    mutable size_t size;
     //! The BAM value_type of the aux data
-    const char value_type;
+    mutable char value_type;
     //! The BAM tag type of the aux data
-    mutable std::unique_ptr<char[]> tag;
+    //mutable std::unique_ptr<char[]> tag;
+    mutable char tag[3];
     //! The value of the aux data, in raw bits
-    mutable std::unique_ptr<unsigned char[]> value;
+    mutable std::unique_ptr<char[]> value;
     //Constructors
 
     /*! For an empty data set.  
@@ -39,11 +40,16 @@ namespace Sequence
     bamaux(); 
     //! For non-empty data
     bamaux( size_t,
-	    std::unique_ptr<char[]> &,
+	    char[3],
+	    //std::unique_ptr<char[]> &,
 	    char,
-	    std::unique_ptr<unsigned char[]> & );
+	    std::unique_ptr<char[]> & );
     //! Move constructor
     bamaux( bamaux && );
+    //! Copy constructor
+    //bamaux( const bamaux & );
+    //! Assignment operator
+    //bamaux & operator=(const bamaux &);
   };
 
   //fwd declaration
